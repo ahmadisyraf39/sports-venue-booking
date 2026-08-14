@@ -1,6 +1,14 @@
 spring:
   application:
     name: user-service
+  datasource:
+    url: jdbc:postgresql://localhost:5433/userdb
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 
 server:
   port: 8081
@@ -13,3 +21,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+jwt:
+  secret: change-this-to-a-long-random-secret-key-at-least-256-bits-for-hs256
+  expiration: 86400000
