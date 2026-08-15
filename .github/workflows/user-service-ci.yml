@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'user-service/**'
-      - '.github/workflworks/user-service-ci.yml'
+      - '.github/workflows/user-service-ci.yml'
 
 jobs:
   test:
