@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - 'user-service/**'
+      - '.github/workflows/user-service-ci.yml'
   push:
     branches: [main]
     paths:
       - 'user-service/**'
+      - '.github/workflows/user-service-ci.yml'
 
 jobs:
   test:
