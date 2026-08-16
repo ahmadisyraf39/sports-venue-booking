@@ -80,5 +80,3 @@ specific prompts used and documented review findings.
 - [ ] Scaling demonstration (horizontal scaling + load test)
 - [ ] Recommendation Service (stretch goal)
 - [ ] Kubernetes deployment (stretch goal)
-
-## License
