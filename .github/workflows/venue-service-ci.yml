@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - 'venue-service/**'
+      - '.github/workflows/venue-service-ci.yml'
   push:
     branches: [main]
     paths:
       - 'venue-service/**'
+      - '.github/workflows/venue-service-ci.yml'
 
 jobs:
   test:
