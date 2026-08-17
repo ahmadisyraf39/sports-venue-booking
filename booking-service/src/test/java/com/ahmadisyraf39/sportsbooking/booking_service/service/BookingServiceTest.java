@@ -5,6 +5,7 @@ import com.ahmadisyraf39.sportsbooking.booking_service.dto.request.CreateBooking
 import com.ahmadisyraf39.sportsbooking.booking_service.dto.response.BookingResponse;
 import com.ahmadisyraf39.sportsbooking.booking_service.entity.Booking;
 import com.ahmadisyraf39.sportsbooking.booking_service.entity.BookingStatus;
+import com.ahmadisyraf39.sportsbooking.booking_service.event.BookingCreatedEvent;
 import com.ahmadisyraf39.sportsbooking.booking_service.exception.BookingNotFoundException;
 import com.ahmadisyraf39.sportsbooking.booking_service.exception.SlotUnavailableException;
 import com.ahmadisyraf39.sportsbooking.booking_service.repository.BookingRepository;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
@@ -46,6 +48,9 @@ class BookingServiceTest {
 
     @Mock
     private BookingLockService bookingLockService;
+
+    @Mock
+    private RabbitTemplate rabbitTemplate;
 
     @InjectMocks
     private BookingService bookingService;
@@ -107,6 +112,8 @@ class BookingServiceTest {
 
             assertThat(response.getId()).isEqualTo("new-booking-id");
             verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0));
+            verify(rabbitTemplate).convertAndSend(
+                    eq("booking.exchange"), eq("booking.created"), any(BookingCreatedEvent.class));
         }
 
         @Test
@@ -119,6 +126,7 @@ class BookingServiceTest {
 
             verify(bookingRepository, never()).save(any(Booking.class));
             verify(bookingLockService, never()).releaseLock(any(), any(), any());
+            verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
         }
 
         @Test
@@ -142,6 +150,7 @@ class BookingServiceTest {
 
             verify(bookingRepository, never()).save(any(Booking.class));
             verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0));
+            verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
         }
     }
 

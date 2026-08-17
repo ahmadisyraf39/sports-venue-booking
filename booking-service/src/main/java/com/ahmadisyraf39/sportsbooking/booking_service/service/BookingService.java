@@ -1,14 +1,17 @@
 package com.ahmadisyraf39.sportsbooking.booking_service.service;
 
+import com.ahmadisyraf39.sportsbooking.booking_service.config.RabbitMQConfig;
 import com.ahmadisyraf39.sportsbooking.booking_service.dto.external.CourtDetails;
 import com.ahmadisyraf39.sportsbooking.booking_service.dto.request.CreateBookingRequest;
 import com.ahmadisyraf39.sportsbooking.booking_service.dto.response.BookingResponse;
 import com.ahmadisyraf39.sportsbooking.booking_service.entity.Booking;
 import com.ahmadisyraf39.sportsbooking.booking_service.entity.BookingStatus;
+import com.ahmadisyraf39.sportsbooking.booking_service.event.BookingCreatedEvent;
 import com.ahmadisyraf39.sportsbooking.booking_service.exception.BookingNotFoundException;
 import com.ahmadisyraf39.sportsbooking.booking_service.exception.SlotUnavailableException;
 import com.ahmadisyraf39.sportsbooking.booking_service.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -24,6 +27,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final RestClient venueServiceRestClient;
     private final BookingLockService bookingLockService;
+    private final RabbitTemplate rabbitTemplate;
 
     public BookingResponse createBooking(CreateBookingRequest request) {
         boolean lockAcquired = bookingLockService.acquireLock(
@@ -51,10 +55,32 @@ public class BookingService {
             booking.setStatus(BookingStatus.PENDING);
             booking.setTotalPrice(totalPrice);
 
-            return toBookingResponse(bookingRepository.save(booking));
+            Booking savedBooking = bookingRepository.save(booking);
+
+            publishBookingCreatedEvent(savedBooking);
+
+            return toBookingResponse(savedBooking);
         } finally {
             bookingLockService.releaseLock(request.getCourtId(), request.getBookingDate(), request.getStartTime());
         }
+    }
+
+    private void publishBookingCreatedEvent(Booking booking) {
+        BookingCreatedEvent event = new BookingCreatedEvent(
+                booking.getId(),
+                booking.getUserId(),
+                booking.getCourtId(),
+                booking.getBookingDate(),
+                booking.getStartTime(),
+                booking.getEndTime(),
+                booking.getTotalPrice()
+        );
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.BOOKING_EXCHANGE,
+                RabbitMQConfig.BOOKING_CREATED_ROUTING_KEY,
+                event
+        );
     }
 
     public BookingResponse getBookingById(String id) {
