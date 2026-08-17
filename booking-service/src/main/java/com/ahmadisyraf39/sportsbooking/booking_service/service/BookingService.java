@@ -23,26 +23,38 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final RestClient venueServiceRestClient;
+    private final BookingLockService bookingLockService;
 
     public BookingResponse createBooking(CreateBookingRequest request) {
-        CourtDetails court = fetchCourtDetails(request.getCourtId());
+        boolean lockAcquired = bookingLockService.acquireLock(
+                request.getCourtId(), request.getBookingDate(), request.getStartTime());
 
-        LocalTime endTime = request.getStartTime().plusHours(request.getDurationHours());
-        BigDecimal totalPrice = court.getHourlyPrice().multiply(BigDecimal.valueOf(request.getDurationHours()));
+        if (!lockAcquired) {
+            throw new SlotUnavailableException("This slot is currently being booked by someone else, please try again");
+        }
 
-        checkSlotAvailable(request.getCourtId(), request.getBookingDate(), request.getStartTime(), endTime);
+        try {
+            CourtDetails court = fetchCourtDetails(request.getCourtId());
 
-        Booking booking = new Booking();
-        booking.setCourtId(request.getCourtId());
-        booking.setVenueId(request.getVenueId());
-        booking.setUserId(request.getUserId());
-        booking.setBookingDate(request.getBookingDate());
-        booking.setStartTime(request.getStartTime());
-        booking.setEndTime(endTime);
-        booking.setStatus(BookingStatus.PENDING);
-        booking.setTotalPrice(totalPrice);
+            LocalTime endTime = request.getStartTime().plusHours(request.getDurationHours());
+            BigDecimal totalPrice = court.getHourlyPrice().multiply(BigDecimal.valueOf(request.getDurationHours()));
 
-        return toBookingResponse(bookingRepository.save(booking));
+            checkSlotAvailable(request.getCourtId(), request.getBookingDate(), request.getStartTime(), endTime);
+
+            Booking booking = new Booking();
+            booking.setCourtId(request.getCourtId());
+            booking.setVenueId(request.getVenueId());
+            booking.setUserId(request.getUserId());
+            booking.setBookingDate(request.getBookingDate());
+            booking.setStartTime(request.getStartTime());
+            booking.setEndTime(endTime);
+            booking.setStatus(BookingStatus.PENDING);
+            booking.setTotalPrice(totalPrice);
+
+            return toBookingResponse(bookingRepository.save(booking));
+        } finally {
+            bookingLockService.releaseLock(request.getCourtId(), request.getBookingDate(), request.getStartTime());
+        }
     }
 
     public BookingResponse getBookingById(String id) {
