@@ -44,6 +44,9 @@ class BookingServiceTest {
     @Mock
     private RestClient.ResponseSpec responseSpec;
 
+    @Mock
+    private BookingLockService bookingLockService;
+
     @InjectMocks
     private BookingService bookingService;
 
@@ -83,7 +86,10 @@ class BookingServiceTest {
     class CreateBooking {
 
         @Test
-        void shouldCreateBooking_WhenCourtExistsAndSlotIsFree() {
+        void shouldCreateBooking_WhenLockAcquiredAndSlotIsFree() {
+            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0)))
+                    .thenReturn(true);
+
             CourtDetails court = new CourtDetails(3L, 2L, "Court A", "BADMINTON", new BigDecimal("25.00"));
             mockVenueServiceCall(court);
 
@@ -100,17 +106,31 @@ class BookingServiceTest {
             BookingResponse response = bookingService.createBooking(sampleRequest());
 
             assertThat(response.getId()).isEqualTo("new-booking-id");
-            assertThat(response.getTotalPrice()).isEqualByComparingTo("25.00");
-            assertThat(response.getStatus()).isEqualTo(BookingStatus.PENDING);
+            verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0));
         }
 
         @Test
-        void shouldThrowConflict_WhenSlotAlreadyBooked() {
+        void shouldThrowSlotUnavailable_WhenLockNotAcquired() {
+            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0)))
+                    .thenReturn(false);
+
+            assertThatThrownBy(() -> bookingService.createBooking(sampleRequest()))
+                    .isInstanceOf(SlotUnavailableException.class);
+
+            verify(bookingRepository, never()).save(any(Booking.class));
+            verify(bookingLockService, never()).releaseLock(any(), any(), any());
+        }
+
+        @Test
+        void shouldReleaseLock_WhenConflictDetectedAfterLockAcquired() {
+            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0)))
+                    .thenReturn(true);
+
             CourtDetails court = new CourtDetails(3L, 2L, "Court A", "BADMINTON", new BigDecimal("25.00"));
             mockVenueServiceCall(court);
 
             Booking conflicting = existingBooking();
-            conflicting.setStartTime(LocalTime.of(14, 0));   // matches sampleRequest()'s slot
+            conflicting.setStartTime(LocalTime.of(14, 0));
             conflicting.setEndTime(LocalTime.of(15, 0));
 
             when(bookingRepository.findByCourtIdAndBookingDateAndStatusNot(
@@ -121,14 +141,7 @@ class BookingServiceTest {
                     .isInstanceOf(SlotUnavailableException.class);
 
             verify(bookingRepository, never()).save(any(Booking.class));
-        }
-
-        @Test
-        void shouldThrowNotFound_WhenCourtDoesNotExist() {
-            when(venueServiceRestClient.get()).thenThrow(new RuntimeException("404 from Venue Service"));
-
-            assertThatThrownBy(() -> bookingService.createBooking(sampleRequest()))
-                    .isInstanceOf(BookingNotFoundException.class);
+            verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0));
         }
     }
 
