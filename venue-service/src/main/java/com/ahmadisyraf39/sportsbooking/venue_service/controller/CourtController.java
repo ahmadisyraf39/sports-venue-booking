@@ -15,6 +15,11 @@ public class CourtController {
 
     private final CourtService courtService;
 
+    @GetMapping("/{id}")
+    public ResponseEntity<CourtResponse> getCourt(@PathVariable Long id) {
+        return ResponseEntity.ok(courtService.getCourtById(id));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<CourtResponse> updateCourt(@PathVariable Long id,
                                                        @Valid @RequestBody CourtUpdateRequest request) {

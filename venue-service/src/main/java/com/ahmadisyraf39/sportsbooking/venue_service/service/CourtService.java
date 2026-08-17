@@ -59,6 +59,10 @@ public class CourtService {
         courtRepository.delete(court);
     }
 
+    public CourtResponse getCourtById(Long id) {
+        return toCourtResponse(findCourtById(id));
+    }
+
     private Court findCourtById(Long id) {
         return courtRepository.findById(id)
                 .orElseThrow(() -> new CourtNotFoundException("Court not found with id: " + id));
