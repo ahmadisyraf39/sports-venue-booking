@@ -69,6 +69,7 @@ public class BookingService {
         BookingCreatedEvent event = new BookingCreatedEvent(
                 booking.getId(),
                 booking.getUserId(),
+                booking.getVenueId(),
                 booking.getCourtId(),
                 booking.getBookingDate(),
                 booking.getStartTime(),
