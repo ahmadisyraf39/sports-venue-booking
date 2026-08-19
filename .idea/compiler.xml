@@ -6,6 +6,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="gateway" />
       </profile>
       <profile name="Annotation profile for venue-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -16,6 +17,7 @@
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
         </processorPath>
         <module name="venue-service" />
+        <module name="user-service" />
       </profile>
       <profile name="Annotation profile for notification-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -26,7 +28,6 @@
         </processorPath>
         <module name="notification-service" />
         <module name="booking-service" />
-        <module name="user-service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -37,6 +38,7 @@
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="booking-service" options="-parameters" />
       <module name="booking-service (1)" options="-parameters" />
+      <module name="gateway" options="-parameters" />
       <module name="notification-service" options="-parameters" />
       <module name="user-service" options="-parameters" />
       <module name="venue-service" options="-parameters" />
