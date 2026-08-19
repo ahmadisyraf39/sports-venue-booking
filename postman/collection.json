@@ -67,6 +67,192 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Venue Service",
+      "item": [
+        {
+          "name": "Create Venue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();\r",
+                  "pm.environment.set(\"venueId\", response.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\": \"Test Sports Complex\",\r\n    \"address\": \"123 Main St\",\r\n    \"description\": \"A test venue\",\r\n    \"openingTime\": \"08:00:00\",\r\n    \"closingTime\": \"22:00:00\",\r\n    \"ownerId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url_venue}}/api/venues",
+              "host": [
+                "{{base_url_venue}}"
+              ],
+              "path": [
+                "api",
+                "venues"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Court",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();\r",
+                  "pm.environment.set(\"courtId\", response.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\": \"Court A\",\r\n    \"sportType\": \"BADMINTON\",\r\n    \"hourlyPrice\": 25.00,\r\n    \"ownerId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url_venue}}/api/venues/{{venueId}}/courts",
+              "host": [
+                "{{base_url_venue}}"
+              ],
+              "path": [
+                "api",
+                "venues",
+                "{{venueId}}",
+                "courts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Courts for Venue",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Booking Service",
+      "item": [
+        {
+          "name": "Create Booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();\r",
+                  "pm.environment.set(\"bookingId\", response.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"courtId\": {{courtId}},\r\n    \"venueId\": {{venueId}},\r\n    \"userId\": 1,\r\n    \"bookingDate\": \"2026-08-25\",\r\n    \"startTime\": \"16:00:00\",\r\n    \"durationHours\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url_booking}}/api/bookings",
+              "host": [
+                "{{base_url_booking}}"
+              ],
+              "path": [
+                "api",
+                "bookings"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment Service",
+      "item": [
+        {
+          "name": "Get Payment by Booking ID",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notification Service",
+      "item": [
+        {
+          "name": "Get Notifications by User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "GET {{base_url_notification}}/api/notifications?userId=1",
+              "host": [
+                "GET {{base_url_notification}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "This service has no direct \"create\" endpoint — notifications are created  \nreactively when payment-service publishes PaymentConfirmed/PaymentFailed  \nevents. To see data here, first run through: Create Venue → Create Court →  \nCreate Booking (Booking Service folder) → wait a few seconds for the Saga  \nto process → then query this endpoint."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }
