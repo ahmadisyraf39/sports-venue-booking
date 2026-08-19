@@ -40,3 +40,6 @@ management:
       show-details: always
     gateway:
       access: unrestricted
+
+jwt:
+  secret: change-this-to-a-long-random-secret-key-at-least-256-bits-for-hs256

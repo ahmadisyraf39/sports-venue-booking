@@ -28,26 +28,35 @@ requests to the appropriate backend service.
 
 ## Testing approach — a deliberate trade-off
 
-Routing correctness is tested by verifying **route configuration** (that
-each route's predicate and target URI load correctly from `application.yaml`
-via `RouteLocator`), rather than full end-to-end request forwarding through
-a live or mocked downstream service. This is a lighter-weight test than
-using WireMock or running real services in CI — it doesn't verify the full
-request/response cycle, but it does catch real misconfiguration, which is
-exactly what it caught during development (see below).
+## Testing approach
 
-## Real bug found and fixed during review
+Routing correctness is verified with real, isolated HTTP stub servers (using
+Java's built-in `com.sun.net.httpserver.HttpServer`, no external mocking
+library needed) — one per downstream service, dynamically wired into
+Gateway's routes via `@DynamicPropertySource`. Tests send genuine HTTP
+requests through a real, running Gateway instance and verify the response
+actually originated from the correct stub, via a distinguishing header —
+this is true end-to-end routing behavior verification, not just
+configuration inspection.
 
-The initial route for user-service was configured as `Path=/api/users/**`,
-matching an incorrect assumption about the endpoint structure. User Service's
-actual auth endpoints are mapped to `/api/auth/**`, not `/api/users/**` —
-this meant login/register requests through the Gateway would have returned
-404, despite the route "existing." Caught by cross-checking the generated
-config against user-service's actual `AuthController` mapping, not by the
-automated test (which was written against the same incorrect assumption).
-Fixed, then verified live: a real login request through
-`http://localhost:8080/api/auth/login` correctly returned a JWT, and
-`/actuator/gateway/routes` confirmed the corrected predicate.
+JWT-protected routes are tested by generating a token directly within the
+test (signed with the same secret Gateway validates against), rather than
+depending on a live User Service instance — keeping the test fast and
+self-contained while still exercising Gateway's real JwtValidator logic.
+A dedicated test also confirms unauthenticated requests to protected routes
+are correctly rejected with 401.
+
+## Real bugs found and fixed
+
+1. Initial route for user-service used an incorrect path predicate
+   (/api/users/** instead of /api/auth/**) — caught by cross-checking
+   against user-service's actual controller mapping, since the test itself
+   shared the same incorrect assumption and didn't catch it independently.
+   Fixed in both the route config and the test's own route spec.
+2. JWT dependencies were initially placed in <dependencyManagement> instead
+   of <dependencies> in pom.xml — meaning they were never actually included
+   in the build, despite appearing correctly declared. Caught via
+   "cannot resolve symbol" errors on Claims/Keys/Jwts.
 
 ## Running locally
 

@@ -1,9 +1,12 @@
 package com.ahmadisyraf39.sportsbooking.gateway;
 
 import com.sun.net.httpserver.HttpServer;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -12,6 +15,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -47,11 +51,15 @@ import java.util.List;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class GatewayRoutingIntegrationTest {
 
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
+
     private record RouteSpec(String id, String pathPredicate) {
     }
 
     private static final List<RouteSpec> ROUTE_SPECS = List.of(
-            new RouteSpec("user-service", "/api/users/**"),
+            new RouteSpec("user-service", "/api/auth/**"),
             new RouteSpec("venue-service", "/api/venues/**"),
             new RouteSpec("booking-service", "/api/bookings/**"),
             new RouteSpec("payment-service", "/api/payments/**"),
@@ -113,7 +121,7 @@ class GatewayRoutingIntegrationTest {
 
     @Test
     void routesUsersPathToUserService() {
-        assertRoutesTo("/api/users/123", "user-service");
+        assertRoutesTo("/api/auth/123", "user-service");
     }
 
     @Test
@@ -143,11 +151,28 @@ class GatewayRoutingIntegrationTest {
                 .expectStatus().isNotFound();
     }
 
+    private String generateTestToken() {
+        return Jwts.builder()
+                .subject("test@example.com")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 3600000))
+                .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes()))
+                .compact();
+    }
+
     private void assertRoutesTo(String path, String expectedService) {
         webTestClient.get().uri(path)
+                .header("Authorization", "Bearer " + generateTestToken())
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().valueEquals("X-Stub-Service", expectedService)
                 .expectBody(String.class).isEqualTo(expectedService);
+    }
+
+    @Test
+    void rejectsUnauthenticatedRequestToProtectedRoute() {
+        webTestClient.get().uri("/api/venues/456")
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 }
