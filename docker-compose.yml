@@ -1,0 +1,151 @@
+services:
+  postgres-user:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: userdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+
+  postgres-venue:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: venuedb
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-venue-data:/var/lib/postgresql/data
+
+  postgres-payment:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: paymentdb
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+
+  postgres-notification:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: notificationdb
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-notification-data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-user:5432/userdb
+    depends_on:
+      - postgres-user
+
+  venue-service:
+    build: ./venue-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-venue:5432/venuedb
+    depends_on:
+      - postgres-venue
+
+  booking-service:
+    build: ./booking-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_MONGODB_HOST: mongo
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_RABBITMQ_HOST: rabbitmq
+      VENUE_SERVICE_BASE_URL: http://venue-service:8082
+    depends_on:
+      - mongo
+      - redis
+      - rabbitmq
+      - venue-service
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/paymentdb
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      - postgres-payment
+      - rabbitmq
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-notification:5432/notificationdb
+      SPRING_RABBITMQ_HOST: rabbitmq
+      MAILTRAP_HOST: sandbox.smtp.mailtrap.io
+      MAILTRAP_PORT: 2525
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+    depends_on:
+      - postgres-notification
+      - rabbitmq
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    environment:
+      USER_SERVICE_URI: http://user-service:8081
+      VENUE_SERVICE_URI: http://venue-service:8082
+      BOOKING_SERVICE_URI: http://booking-service:8083
+      PAYMENT_SERVICE_URI: http://payment-service:8084
+      NOTIFICATION_SERVICE_URI: http://notification-service:8085
+    depends_on:
+      - user-service
+      - venue-service
+      - booking-service
+      - payment-service
+      - notification-service
+
+volumes:
+  postgres-user-data:
+  postgres-venue-data:
+  postgres-payment-data:
+  postgres-notification-data:
+  mongo-data:
+  rabbitmq-data:
