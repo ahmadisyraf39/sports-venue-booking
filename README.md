@@ -12,6 +12,8 @@ below may be added as time allows.
 communicating via REST (synchronous) and RabbitMQ (asynchronous events for
 the booking saga). Orchestrated locally with Docker Compose.
 
+![Architecture diagram](./media/sports_venue_booking_architecture.png)
+
 | Service | Responsibility | Database | Status |
 |---|---|---|---|
 | API Gateway | Routing, JWT validation | — | ✅ Complete |
@@ -106,6 +108,31 @@ landing in a Mailtrap sandbox inbox.
   not resolved through a service registry like Eureka.
 - No dead-letter queue / retry policy configured for RabbitMQ consumers.
 
+## Screenshots
+
+**Full stack running locally via Docker Compose** - all 6 services, 4
+PostgreSQL instances, MongoDB, Redis, and RabbitMQ:
+
+![Docker Desktop containers](./media/docker-desktop.PNG)
+
+**CI** - required tests passing before a pull request can merge:
+
+![GitHub Actions CI checks on a pull request](./media/github-ci.PNG)
+
+**CD** - Docker image built and pushed to GHCR on merge to `main`:
+
+![GitHub Actions CD Docker build summary](./media/github-cd.PNG)
+
+**Workflow history** - CI/CD runs across services over the project timeline:
+
+![GitHub Actions workflow run history](./media/github-deploy.PNG)
+
+**End-to-end saga verification** - a real email landing in the Mailtrap
+sandbox inbox after `POST /api/bookings` runs the full booking -> payment ->
+notification chain:
+
+![Booking confirmation email in Mailtrap sandbox](./media/mailtrap-sandbox.PNG)
+
 ## AI-Assisted Development
 
 Later services in this repo were scaffolded using Claude Code, after
@@ -120,6 +147,12 @@ service READMEs for the specific prompts used and documented findings:
 - [`payment-service/README.md`](./payment-service)
 - [`notification-service/README.md`](./notification-service)
 - [`gateway/README.md`](./gateway)
+
+AI was also used to help diagnose CI failures directly from job logs, e.g.
+GitHub Copilot identifying a Testcontainers startup-timing issue in a
+failing `payment-service` build:
+
+![GitHub Copilot explaining a failing CI job](./media/copilot.PNG)
 
 ## Roadmap
 
