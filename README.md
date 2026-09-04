@@ -133,6 +133,24 @@ notification chain:
 
 ![Booking confirmation email in Mailtrap sandbox](./media/mailtrap-sandbox.PNG)
 
+**Double-booking prevention** - the Redis-based slot lock rejecting a
+conflicting booking for the same court/date/time:
+
+![Double-booking prevention demo](./media/double-booking-prevention-demo.gif)
+
+Firing both requests simultaneously to confirm the lock holds under a genuine
+race, not just sequential requests:
+
+![Double-booking prevention demo - both requests fired simultaneously](./media/double-booking-prevention-demo-fire-both-simultaneously.gif)
+
+**Scaling demonstration** - JMeter load test (100 concurrent threads, 1000
+requests) comparing booking-service at 1 replica vs 3 replicas; see
+[`demo/SCALING_RESULTS.md`](./demo/SCALING_RESULTS.md) for full results:
+
+![Load test results - 1 replica](./media/load-test-1-replica.PNG)
+
+![Load test results - 3 replicas](./media/load-test-3-replicas.PNG)
+
 ## AI-Assisted Development
 
 Later services in this repo were scaffolded using Claude Code, after
@@ -166,7 +184,8 @@ failing `payment-service` build:
 
 **Optional enhancements (not required for core completeness):**
 - [ ] Observability stack (Prometheus, Grafana, Zipkin)
-- [ ] Scaling demonstration (horizontal scaling + load test)
+- [x] Scaling demonstration (horizontal scaling + load test)
+- [x] Live double-booking prevention demo page
 - [ ] Recommendation Service (stretch goal)
 - [ ] Kubernetes deployment (stretch goal)
 
