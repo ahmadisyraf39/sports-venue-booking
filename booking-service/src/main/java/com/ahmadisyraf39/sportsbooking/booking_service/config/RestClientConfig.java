@@ -12,8 +12,8 @@ public class RestClientConfig {
     private String venueServiceBaseUrl;
 
     @Bean
-    public RestClient venueServiceRestClient() {
-        return RestClient.builder()
+    public RestClient venueServiceRestClient(RestClient.Builder builder) {
+        return builder
                 .baseUrl(venueServiceBaseUrl)
                 .build();
     }
