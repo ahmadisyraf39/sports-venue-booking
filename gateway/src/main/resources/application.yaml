@@ -34,12 +34,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,gateway,prometheus
   endpoint:
     health:
       show-details: always
     gateway:
       access: unrestricted
+  tracing:
+    sampling:
+      probability: 1.0
+    export:
+      zipkin:
+        endpoint: http://${ZIPKIN_HOST:localhost}:9411/api/v2/spans
 
 jwt:
   secret: change-this-to-a-long-random-secret-key-at-least-256-bits-for-hs256

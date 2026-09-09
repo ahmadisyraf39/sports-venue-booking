@@ -66,14 +66,40 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
 
+  zipkin:
+    image: openzipkin/zipkin:latest
+    ports:
+      - "9411:9411"
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
+    depends_on:
+      - prometheus
+
   user-service:
     build: ./user-service
     ports:
       - "8081:8081"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-user:5432/userdb
+      ZIPKIN_HOST: zipkin
     depends_on:
       - postgres-user
+      - zipkin
 
   venue-service:
     build: ./venue-service
@@ -81,8 +107,10 @@ services:
       - "8082:8082"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-venue:5432/venuedb
+      ZIPKIN_HOST: zipkin
     depends_on:
       - postgres-venue
+      - zipkin
 
   booking-service:
     build: ./booking-service
@@ -93,11 +121,13 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_RABBITMQ_HOST: rabbitmq
       VENUE_SERVICE_BASE_URL: http://venue-service:8082
+      ZIPKIN_HOST: zipkin
     depends_on:
       - mongo
       - redis
       - rabbitmq
       - venue-service
+      - zipkin
 
   payment-service:
     build: ./payment-service
@@ -106,9 +136,11 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/paymentdb
       SPRING_RABBITMQ_HOST: rabbitmq
+      ZIPKIN_HOST: zipkin
     depends_on:
       - postgres-payment
       - rabbitmq
+      - zipkin
 
   notification-service:
     build: ./notification-service
@@ -121,9 +153,11 @@ services:
       MAILTRAP_PORT: 2525
       MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
       MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+      ZIPKIN_HOST: zipkin
     depends_on:
       - postgres-notification
       - rabbitmq
+      - zipkin
 
   gateway:
     build: ./gateway
@@ -135,12 +169,14 @@ services:
       BOOKING_SERVICE_URI: http://booking-service:8083
       PAYMENT_SERVICE_URI: http://payment-service:8084
       NOTIFICATION_SERVICE_URI: http://notification-service:8085
+      ZIPKIN_HOST: zipkin
     depends_on:
       - user-service
       - venue-service
       - booking-service
       - payment-service
       - notification-service
+      - zipkin
 
 volumes:
   postgres-user-data:
