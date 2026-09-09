@@ -151,6 +151,24 @@ requests) comparing booking-service at 1 replica vs 3 replicas; see
 
 ![Load test results - 3 replicas](./media/load-test-3-replicas.PNG)
 
+**Distributed tracing** - Zipkin capturing traces across all 6 services:
+
+![Zipkin trace list across all services](./media/zipkin-all.PNG)
+
+Drilling into a single trace shows the Spring Security filter chain spans for
+`user-service`:
+
+![Zipkin trace detail - user-service security filter chain](./media/zipkin-user.PNG)
+
+**Metrics** - Prometheus scraping all 6 services successfully:
+
+![Prometheus target health - all services up](./media/prometheus.PNG)
+
+**Dashboards** - a Grafana dashboard visualizing request rate, latency, and
+service health across the stack:
+
+![Grafana service metrics dashboard](./media/grafana.PNG)
+
 ## AI-Assisted Development
 
 Later services in this repo were scaffolded using Claude Code, after
