@@ -183,7 +183,7 @@ failing `payment-service` build:
 - [x] Docker Compose - full system orchestration
 
 **Optional enhancements (not required for core completeness):**
-- [ ] Observability stack (Prometheus, Grafana, Zipkin)
+- [x] Observability stack (Prometheus, Grafana, Zipkin)
 - [x] Scaling demonstration (horizontal scaling + load test)
 - [x] Live double-booking prevention demo page
 - [ ] Recommendation Service (stretch goal)
