@@ -137,4 +137,22 @@ public class BookingService {
                 .updatedAt(booking.getUpdatedAt())
                 .build();
     }
+
+    public void confirmBooking(String bookingId) {
+        transitionFromPending(bookingId, BookingStatus.CONFIRMED);
+    }
+
+    public void cancelBooking(String bookingId) {
+        transitionFromPending(bookingId, BookingStatus.CANCELLED);
+    }
+
+    private void transitionFromPending(String bookingId, BookingStatus target) {
+        Booking booking = findBookingById(bookingId);
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            // Already processed: duplicate delivery (RabbitMQ is at-least-once), stay idempotent
+            return;
+        }
+        booking.setStatus(target);
+        bookingRepository.save(booking);
+    }
 }

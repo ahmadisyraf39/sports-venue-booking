@@ -180,4 +180,50 @@ class BookingServiceTest {
             assertThat(responses).hasSize(1);
         }
     }
+
+    @Nested
+    class PaymentResult {
+
+        @Test
+        void shouldConfirmPendingBooking_WhenPaymentConfirmed() {
+            Booking booking = existingBooking();
+            when(bookingRepository.findById("booking-1")).thenReturn(Optional.of(booking));
+
+            bookingService.confirmBooking("booking-1");
+
+            assertThat(booking.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+            verify(bookingRepository).save(booking);
+        }
+
+        @Test
+        void shouldCancelPendingBooking_WhenPaymentFailed() {
+            Booking booking = existingBooking();
+            when(bookingRepository.findById("booking-1")).thenReturn(Optional.of(booking));
+
+            bookingService.cancelBooking("booking-1");
+
+            assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+            verify(bookingRepository).save(booking);
+        }
+
+        @Test
+        void shouldIgnoreEvent_WhenBookingAlreadyConfirmed() {
+            Booking booking = existingBooking();
+            booking.setStatus(BookingStatus.CONFIRMED);
+            when(bookingRepository.findById("booking-1")).thenReturn(Optional.of(booking));
+
+            bookingService.cancelBooking("booking-1");    // e.g. a late or duplicate event
+
+            assertThat(booking.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+            verify(bookingRepository, never()).save(any(Booking.class));
+        }
+
+        @Test
+        void shouldThrowNotFound_WhenBookingMissing() {
+            when(bookingRepository.findById("missing")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> bookingService.confirmBooking("missing"))
+                    .isInstanceOf(BookingNotFoundException.class);
+        }
+    }
 }
