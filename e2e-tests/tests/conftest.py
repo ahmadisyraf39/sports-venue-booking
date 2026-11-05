@@ -55,3 +55,40 @@ def api(playwright: Playwright, token: str):
     )
     yield context
     context.dispose()
+
+@pytest.fixture
+def venue(api: APIRequestContext, test_user: dict):
+    """A fresh venue owned by the test user, deleted afterwards."""
+    payload = {
+        "name": f"E2E Arena {uuid.uuid4().hex[:8]}",
+        "address": "1 Jalan Ujian, Kajang",
+        "description": "Created by the e2e test suite",
+        "openingTime": "08:00:00",
+        "closingTime": "23:00:00",
+        "ownerId": test_user["id"],
+    }
+    response = api.post("/api/venues", data=payload)
+    assert response.status == 201, f"create venue failed: {response.status} {response.text()}"
+    created = response.json()
+
+    yield {**created, "payload": payload}
+
+    api.delete(f"/api/venues/{created['id']}", params={"ownerId": test_user["id"]})
+
+
+@pytest.fixture
+def court(api: APIRequestContext, venue: dict, test_user: dict):
+    """A badminton court in the fresh venue, deleted before the venue."""
+    payload = {
+        "name": "Court A",
+        "sportType": "BADMINTON",
+        "hourlyPrice": 25.00,
+        "ownerId": test_user["id"],
+    }
+    response = api.post(f"/api/venues/{venue['id']}/courts", data=payload)
+    assert response.status == 201, f"create court failed: {response.status} {response.text()}"
+    created = response.json()
+
+    yield {**created, "payload": payload}
+
+    api.delete(f"/api/courts/{created['id']}", params={"ownerId": test_user["id"]})
