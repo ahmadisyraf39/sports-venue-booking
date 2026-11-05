@@ -87,12 +87,12 @@ class BookingServiceTest {
         when(responseSpec.body(CourtDetails.class)).thenReturn(courtDetails);
     }
 
-    @Nested
+        @Nested
     class CreateBooking {
 
         @Test
         void shouldCreateBooking_WhenLockAcquiredAndSlotIsFree() {
-            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0)))
+            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20)))
                     .thenReturn(true);
 
             CourtDetails court = new CourtDetails(3L, 2L, "Court A", "BADMINTON", new BigDecimal("25.00"));
@@ -111,27 +111,27 @@ class BookingServiceTest {
             BookingResponse response = bookingService.createBooking(sampleRequest());
 
             assertThat(response.getId()).isEqualTo("new-booking-id");
-            verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0));
+            verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20));
             verify(rabbitTemplate).convertAndSend(
                     eq("booking.exchange"), eq("booking.created"), any(BookingCreatedEvent.class));
         }
 
         @Test
         void shouldThrowSlotUnavailable_WhenLockNotAcquired() {
-            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0)))
+            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20)))
                     .thenReturn(false);
 
             assertThatThrownBy(() -> bookingService.createBooking(sampleRequest()))
                     .isInstanceOf(SlotUnavailableException.class);
 
             verify(bookingRepository, never()).save(any(Booking.class));
-            verify(bookingLockService, never()).releaseLock(any(), any(), any());
+            verify(bookingLockService, never()).releaseLock(any(), any());
             verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
         }
 
         @Test
         void shouldReleaseLock_WhenConflictDetectedAfterLockAcquired() {
-            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0)))
+            when(bookingLockService.acquireLock(3L, LocalDate.of(2026, 8, 20)))
                     .thenReturn(true);
 
             CourtDetails court = new CourtDetails(3L, 2L, "Court A", "BADMINTON", new BigDecimal("25.00"));
@@ -149,7 +149,7 @@ class BookingServiceTest {
                     .isInstanceOf(SlotUnavailableException.class);
 
             verify(bookingRepository, never()).save(any(Booking.class));
-            verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20), LocalTime.of(14, 0));
+            verify(bookingLockService).releaseLock(3L, LocalDate.of(2026, 8, 20));
             verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
         }
     }

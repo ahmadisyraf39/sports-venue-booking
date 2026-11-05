@@ -31,7 +31,7 @@ public class BookingService {
 
     public BookingResponse createBooking(CreateBookingRequest request) {
         boolean lockAcquired = bookingLockService.acquireLock(
-                request.getCourtId(), request.getBookingDate(), request.getStartTime());
+                request.getCourtId(), request.getBookingDate());
 
         if (!lockAcquired) {
             throw new SlotUnavailableException("This slot is currently being booked by someone else, please try again");
@@ -61,7 +61,7 @@ public class BookingService {
 
             return toBookingResponse(savedBooking);
         } finally {
-            bookingLockService.releaseLock(request.getCourtId(), request.getBookingDate(), request.getStartTime());
+            bookingLockService.releaseLock(request.getCourtId(), request.getBookingDate());
         }
     }
 
