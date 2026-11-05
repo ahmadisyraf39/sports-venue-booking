@@ -3,21 +3,7 @@ from datetime import date, timedelta
 import pytest
 from playwright.sync_api import APIRequestContext
 
-from helpers import wait_until
-
-BOOKING_DATE = (date.today() + timedelta(days=7)).isoformat()   # e.g. "2026-11-12"
-
-
-def booking_request(venue: dict, court: dict, user: dict, start: str = "10:00:00", hours: int = 2) -> dict:
-    return {
-        "courtId": court["id"],
-        "venueId": venue["id"],
-        "userId": user["id"],
-        "bookingDate": BOOKING_DATE,
-        "startTime": start,
-        "durationHours": hours,
-    }
-
+from helpers import wait_until, booking_request
 
 @pytest.fixture
 def booking(api: APIRequestContext, venue: dict, court: dict, test_user: dict) -> dict:

@@ -1,12 +1,8 @@
-import os
 import uuid
 
 import pytest
 from playwright.sync_api import Playwright, APIRequestContext
-
-# Override in CI or for another environment: $env:GATEWAY_URL="http://..."
-GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080")
-
+from helpers import GATEWAY_URL
 
 @pytest.fixture(scope="session")
 def anon_api(playwright: Playwright):
