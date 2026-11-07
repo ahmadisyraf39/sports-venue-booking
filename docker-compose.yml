@@ -149,15 +149,16 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-notification:5432/notificationdb
       SPRING_RABBITMQ_HOST: rabbitmq
-      MAILTRAP_HOST: sandbox.smtp.mailtrap.io
-      MAILTRAP_PORT: 2525
-      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
-      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+      MAILTRAP_HOST: ${MAIL_HOST:-mailpit}
+      MAILTRAP_PORT: ${MAIL_PORT:-1025}
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME:-test}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD:-test}
       ZIPKIN_HOST: zipkin
     depends_on:
       - postgres-notification
       - rabbitmq
       - zipkin
+      - mailpit
 
   gateway:
     build: ./gateway
@@ -177,6 +178,15 @@ services:
       - payment-service
       - notification-service
       - zipkin
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025" # web UI: http://localhost:8025
+      - "1025:1025" # SMTP
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1 # accept any username/password
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1 # allow login without TLS (local only)
 
 volumes:
   postgres-user-data:
