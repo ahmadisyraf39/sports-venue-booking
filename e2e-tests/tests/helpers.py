@@ -8,6 +8,7 @@ from typing import Callable, TypeVar
 from playwright.async_api import async_playwright
 
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080")
+MAILPIT_URL = os.getenv("MAILPIT_URL", "http://localhost:8025")
 BOOKING_DATE = (date.today() + timedelta(days=7)).isoformat()
 
 T = TypeVar("T")

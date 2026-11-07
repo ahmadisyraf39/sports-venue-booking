@@ -1,9 +1,9 @@
 from datetime import date, timedelta
 
 import pytest
-from playwright.sync_api import APIRequestContext
+from playwright.sync_api import APIRequestContext, Playwright
 
-from helpers import wait_until, booking_request
+from helpers import wait_until, booking_request, MAILPIT_URL
 
 @pytest.fixture
 def booking(api: APIRequestContext, venue: dict, court: dict, test_user: dict) -> dict:
@@ -72,3 +72,19 @@ def test_invalid_booking_returns_400(api: APIRequestContext, venue: dict, court:
     payload = {**booking_request(venue, court, test_user), **change}
     response = api.post("/api/bookings", data=payload)
     assert response.status == 400, f"status {response.status}: {response.text()}"
+
+
+def test_confirmation_email_is_sent(playwright: Playwright, booking: dict, test_user: dict):
+    mailpit = playwright.request.new_context(base_url=MAILPIT_URL)
+    recipient = f"user{test_user['id']}@example.com"    # notification-service's placeholder address
+
+    def emails_for_user():
+        result = mailpit.get("/api/v1/search", params={"query": f"to:{recipient}"}).json()
+        return result.get("messages", [])
+
+    try:
+        emails = wait_until(emails_for_user, description=f"email to {recipient}")
+    finally:
+        mailpit.dispose()
+
+    assert any(e["Subject"] == "Booking Confirmed" for e in emails), emails
