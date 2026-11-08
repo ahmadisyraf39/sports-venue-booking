@@ -1,6 +1,7 @@
 package com.ahmadisyraf39.sportsbooking.notification_service.repository;
 
 import com.ahmadisyraf39.sportsbooking.notification_service.entity.NotificationLog;
+import com.ahmadisyraf39.sportsbooking.notification_service.entity.NotificationStatus;
 import com.ahmadisyraf39.sportsbooking.notification_service.entity.NotificationType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,7 @@ class NotificationLogRepositoryTest {
         notificationLog.setRecipientUserId(recipientUserId);
         notificationLog.setBookingId("booking-1");
         notificationLog.setType(type);
+        notificationLog.setStatus(NotificationStatus.SENT);
         notificationLog.setMessage("Your booking has been confirmed!");
         return notificationLog;
     }
