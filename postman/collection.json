@@ -1,291 +1,1081 @@
 {
   "info": {
-    "_postman_id": "30bd12f3-cd37-40f1-8321-05a75d9fba7d",
     "name": "Sports Venue Booking Platform",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "47573163",
-    "_collection_link": "https://go.postman.co/collection/47573163-30bd12f3-cd37-40f1-8321-05a75d9fba7d?source=collection_link"
+    "description": "All requests go through the API Gateway ({{base_url}}), like a real client.\n\nRun the folders in order (or the whole collection with the Collection Runner): 1. Auth registers a fresh user and stores the JWT; every other request sends it automatically via collection-level Bearer auth. IDs (userId, venueId, courtId, bookingId) are saved as collection variables, so the folders chain together.\n\nEmails from the saga go to local Mailpit: http://localhost:8025",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
   },
   "item": [
     {
-      "name": "User Service",
+      "name": "1. Auth",
+      "description": "Public endpoints (no token). Register creates a fresh user each run; Login stores the JWT used by every other request.",
+      "auth": {
+        "type": "noauth"
+      },
       "item": [
         {
           "name": "Register",
           "request": {
             "method": "POST",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"email\": \"test@example.com\",\r\n    \"password\": \"password123\",\r\n    \"name\": \"Test User\",\r\n    \"phone\": \"0123456789\"\r\n}",
+              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"name\": \"Postman Tester\",\n    \"phone\": \"0123456789\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/auth/register",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "auth",
-                "register"
-              ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A unique email every run, so Register never hits 409 (email already exists)",
+                  "pm.collectionVariables.set(\"email\", `postman-${Date.now()}@example.com`);",
+                  "pm.collectionVariables.set(\"password\", \"Passw0rd!123\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"userId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login",
           "request": {
             "method": "POST",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"email\": \"test@example.com\",\r\n    \"password\": \"password123\"\r\n}",
+              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/auth/login",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "auth",
-                "login"
-              ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "const token = pm.response.json().token;",
+                  "pm.test(\"Response contains a JWT\", () => pm.expect(token.split(\".\")).to.have.length(3));",
+                  "pm.collectionVariables.set(\"token\", token);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Venue Service",
+      "name": "2. Venues & Courts",
       "item": [
         {
           "name": "Create Venue",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const response = pm.response.json();\r",
-                  "pm.environment.set(\"venueId\", response.id);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
           "request": {
             "method": "POST",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues"]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"name\": \"Test Sports Complex\",\r\n    \"address\": \"123 Main St\",\r\n    \"description\": \"A test venue\",\r\n    \"openingTime\": \"08:00:00\",\r\n    \"closingTime\": \"22:00:00\",\r\n    \"ownerId\": 1\r\n}",
+              "raw": "{\n    \"name\": \"Postman Arena {{$timestamp}}\",\n    \"address\": \"1 Jalan Ujian, Kajang\",\n    \"description\": \"Created from the Postman collection\",\n    \"openingTime\": \"08:00:00\",\n    \"closingTime\": \"23:00:00\",\n    \"ownerId\": {{userId}}\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"venueId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Venues",
+          "request": {
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{base_url_venue}}/api/venues",
-              "host": [
-                "{{base_url_venue}}"
-              ],
-              "path": [
-                "api",
-                "venues"
+              "raw": "{{base_url}}/api/venues",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search Venues by Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues?search=postman arena",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "postman arena"
+                }
               ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Search finds the new venue\", () => {",
+                  "    const ids = pm.response.json().map(v => v.id);",
+                  "    pm.expect(ids).to.include(Number(pm.collectionVariables.get(\"venueId\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Venue by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues/{{venueId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues", "{{venueId}}"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Venue",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues/{{venueId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues", "{{venueId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Postman Arena {{$timestamp}}\",\n    \"address\": \"1 Jalan Ujian, Kajang\",\n    \"description\": \"Updated from the Postman collection\",\n    \"openingTime\": \"08:00:00\",\n    \"closingTime\": \"23:00:00\",\n    \"ownerId\": {{userId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Create Court",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const response = pm.response.json();\r",
-                  "pm.environment.set(\"courtId\", response.id);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
           "request": {
             "method": "POST",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues/{{venueId}}/courts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues", "{{venueId}}", "courts"]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"name\": \"Court A\",\r\n    \"sportType\": \"BADMINTON\",\r\n    \"hourlyPrice\": 25.00,\r\n    \"ownerId\": 1\r\n}",
+              "raw": "{\n    \"name\": \"Court A\",\n    \"sportType\": \"BADMINTON\",\n    \"hourlyPrice\": 25.0,\n    \"ownerId\": {{userId}}\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{base_url_venue}}/api/venues/{{venueId}}/courts",
-              "host": [
-                "{{base_url_venue}}"
-              ],
-              "path": [
-                "api",
-                "venues",
-                "{{venueId}}",
-                "courts"
-              ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"courtId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List Courts for Venue",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues/{{venueId}}/courts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues", "{{venueId}}", "courts"]
+            }
           },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Booking Service",
-      "item": [
-        {
-          "name": "Create Booking",
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
-                "exec": [
-                  "const response = pm.response.json();\r",
-                  "pm.environment.set(\"bookingId\", response.id);"
-                ],
                 "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Get Court by ID",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courts/{{courtId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courts", "{{courtId}}"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Court",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courts/{{courtId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courts", "{{courtId}}"]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"courtId\": {{courtId}},\r\n    \"venueId\": {{venueId}},\r\n    \"userId\": 1,\r\n    \"bookingDate\": \"2026-08-25\",\r\n    \"startTime\": \"16:00:00\",\r\n    \"durationHours\": 1\r\n}",
+              "raw": "{\n    \"name\": \"Court A\",\n    \"sportType\": \"BADMINTON\",\n    \"hourlyPrice\": 30.0,\n    \"ownerId\": {{userId}}\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{base_url_booking}}/api/bookings",
-              "host": [
-                "{{base_url_booking}}"
-              ],
-              "path": [
-                "api",
-                "bookings"
-              ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Payment Service",
+      "name": "3. Booking (saga)",
+      "description": "Create Booking starts the saga: booking-service -> RabbitMQ -> payment-service -> booking-service (CONFIRMED) + notification-service.",
       "item": [
         {
-          "name": "Get Payment by Booking ID",
+          "name": "Create Booking",
           "request": {
-            "method": "GET",
-            "header": []
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"courtId\": {{courtId}},\n    \"venueId\": {{venueId}},\n    \"userId\": {{userId}},\n    \"bookingDate\": \"{{bookingDate}}\",\n    \"startTime\": \"16:00:00\",\n    \"durationHours\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Notification Service",
-      "item": [
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Bookings must be today or later (@FutureOrPresent): use a date one week ahead",
+                  "const d = new Date();",
+                  "d.setDate(d.getDate() + 7);",
+                  "pm.collectionVariables.set(\"bookingDate\", d.toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "const booking = pm.response.json();",
+                  "pm.test(\"New booking starts as PENDING\", () => pm.expect(booking.status).to.eql(\"PENDING\"));",
+                  "pm.collectionVariables.set(\"bookingId\", booking.id);"
+                ]
+              }
+            }
+          ]
+        },
         {
-          "name": "Get Notifications by User",
+          "name": "Get Booking by ID (after saga)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "GET {{base_url_notification}}/api/notifications?userId=1",
-              "host": [
-                "GET {{base_url_notification}}"
-              ],
-              "path": [
-                "api",
-                "notifications"
-              ],
+              "raw": "{{base_url}}/api/bookings/{{bookingId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings", "{{bookingId}}"]
+            },
+            "description": "If this shows PENDING, send it again after a few seconds."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Give the saga a few seconds to finish before checking the status",
+                  "setTimeout(() => {}, 3000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Saga confirmed the booking\", () => pm.expect(pm.response.json().status).to.eql(\"CONFIRMED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Bookings for User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bookings?userId={{userId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings"],
               "query": [
                 {
                   "key": "userId",
-                  "value": "1"
+                  "value": "{{userId}}"
                 }
               ]
-            },
-            "description": "This service has no direct \"create\" endpoint — notifications are created  \nreactively when payment-service publishes PaymentConfirmed/PaymentFailed  \nevents. To see data here, first run through: Create Venue → Create Court →  \nCreate Booking (Booking Service folder) → wait a few seconds for the Saga  \nto process → then query this endpoint."
+            }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Book the Same Slot Again (409)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"courtId\": {{courtId}},\n    \"venueId\": {{venueId}},\n    \"userId\": {{userId}},\n    \"bookingDate\": \"{{bookingDate}}\",\n    \"startTime\": \"16:00:00\",\n    \"durationHours\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Gateway",
+      "name": "4. Payment",
       "item": [
         {
-          "name": "Login via Gateway",
+          "name": "Get Payments by Booking ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/payments?bookingId={{bookingId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments"],
+              "query": [
+                {
+                  "key": "bookingId",
+                  "value": "{{bookingId}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "const payments = pm.response.json();",
+                  "pm.test(\"Exactly one CONFIRMED payment\", () => {",
+                  "    pm.expect(payments).to.have.length(1);",
+                  "    pm.expect(payments[0].status).to.eql(\"CONFIRMED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Notification",
+      "description": "Notifications are created by events, not by an endpoint. Emails go to local Mailpit: http://localhost:8025",
+      "item": [
+        {
+          "name": "Get Notifications for User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?userId={{userId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "const note = pm.response.json().find(n => n.bookingId === pm.collectionVariables.get(\"bookingId\"));",
+                  "pm.test(\"Notification sent for this booking\", () => {",
+                  "    pm.expect(note, \"notification for this booking\").to.exist;",
+                  "    pm.expect(note.type).to.eql(\"BOOKING_CONFIRMED\");",
+                  "    pm.expect(note.status).to.eql(\"SENT\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Negative cases",
+      "description": "Requests the API must reject, with the exact status each one should return.",
+      "item": [
+        {
+          "name": "Protected Path without Token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with Wrong Password (401)",
           "request": {
             "method": "POST",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"email\": \"test@example.com\",\r\n    \"password\": \"password123\"\r\n}",
+              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"wrong-password\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register with Short Password (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
             "url": {
-              "raw": "{{base_url_gateway}}/api/auth/login",
-              "host": [
-                "{{base_url_gateway}}"
-              ],
-              "path": [
-                "api",
-                "auth",
-                "login"
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"short-pw@example.com\",\n    \"password\": \"short\",\n    \"name\": \"Short\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Booking in the Past (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"courtId\": {{courtId}},\n    \"venueId\": {{venueId}},\n    \"userId\": {{userId}},\n    \"bookingDate\": \"2020-01-01\",\n    \"startTime\": \"16:00:00\",\n    \"durationHours\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown Venue (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues/999999999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues", "999999999"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Venue as Non-Owner (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues/{{venueId}}?ownerId={{otherOwnerId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues", "{{venueId}}"],
+              "query": [
+                {
+                  "key": "ownerId",
+                  "value": "{{otherOwnerId}}"
+                }
               ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"otherOwnerId\", Number(pm.collectionVariables.get(\"userId\")) + 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
         }
       ]
+    },
+    {
+      "name": "7. Cleanup",
+      "description": "Deletes the court and venue created above (bookings stay: there is no delete endpoint for them).",
+      "item": [
+        {
+          "name": "Delete Court",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courts/{{courtId}}?ownerId={{userId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courts", "{{courtId}}"],
+              "query": [
+                {
+                  "key": "ownerId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Venue",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/venues/{{venueId}}?ownerId={{userId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "venues", "{{venueId}}"],
+              "query": [
+                {
+                  "key": "ownerId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Direct service health (debug)",
+      "description": "Bypasses the gateway to check each service on its own port. booking-service has no host port (it runs behind the gateway).",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Gateway health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/health",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "User service health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{user_service_url}}/actuator/health",
+              "host": ["{{user_service_url}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Venue service health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{venue_service_url}}/actuator/health",
+              "host": ["{{venue_service_url}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment service health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/actuator/health",
+              "host": ["{{payment_service_url}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Notification service health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notification_service_url}}/actuator/health",
+              "host": ["{{notification_service_url}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "user_service_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "venue_service_url",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "payment_service_url",
+      "value": "http://localhost:8084",
+      "type": "string"
+    },
+    {
+      "key": "notification_service_url",
+      "value": "http://localhost:8085",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otherOwnerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "venueId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "courtId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingDate",
+      "value": "",
+      "type": "string"
     }
   ]
 }
