@@ -40,6 +40,8 @@ def test_notification_is_sent(api: APIRequestContext, booking: dict, test_user: 
 
     assert len(notes) == 1, f"expected exactly one notification, got {notes}"
     assert notes[0]["type"] == "BOOKING_CONFIRMED"
+    assert notes[0].get("status") == "SENT", f"notification not marked as sent: {notes[0]}"
+    assert booking["id"] in notes[0]["message"], f"message doesn't mention the booking: {notes[0]}"
 
 
 def test_booking_status_becomes_confirmed(api: APIRequestContext, booking: dict):
@@ -78,13 +80,14 @@ def test_confirmation_email_is_sent(playwright: Playwright, booking: dict, test_
     mailpit = playwright.request.new_context(base_url=MAILPIT_URL)
     recipient = f"user{test_user['id']}@example.com"    # notification-service's placeholder address
 
-    def emails_for_user():
+    def emails_for_this_booking():
         result = mailpit.get("/api/v1/search", params={"query": f"to:{recipient}"}).json()
-        return result.get("messages", [])
+        return [e for e in result.get("messages", []) if booking["id"] in e.get("Snippet", "")]
 
     try:
-        emails = wait_until(emails_for_user, description=f"email to {recipient}")
+        emails = wait_until(emails_for_this_booking, description=f"email about booking {booking['id']}")
     finally:
         mailpit.dispose()
 
-    assert any(e["Subject"] == "Booking Confirmed" for e in emails), emails
+    assert len(emails) == 1, f"expected exactly one email for this booking, got {emails}"
+    assert emails[0]["Subject"] == "Booking Confirmed"
