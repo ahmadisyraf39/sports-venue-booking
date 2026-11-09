@@ -4,7 +4,7 @@ Microservices-based sports venue booking platform (Java/Spring Boot) with
 event-driven Saga pattern, Docker, CI/CD, and an end-to-end API test suite.
 
 **Status:** Core system complete (Aug 2026). End-to-end test suite added
-(Nov 2026) - it found and drove fixes for four real bugs, documented below.
+(Nov 2026) - it found and drove fixes for five real bugs, documented below.
 Optional enhancements listed below may be added as time allows.
 
 ## Architecture
@@ -31,7 +31,7 @@ the booking saga). Orchestrated locally with Docker Compose.
 - Spring Cloud Gateway (reactive/WebFlux)
 - Docker, Docker Compose, GitHub Actions CI/CD
 - Testcontainers, JUnit 5, Mockito, AssertJ
-- Playwright (Python) + pytest - end-to-end API test suite
+- Playwright (Python) + pytest - end-to-end API and UI test suite
 - GitHub Container Registry (image publishing)
 - Spring Mail + Mailpit (local email capture, default) / Mailtrap (optional sandbox)
 
@@ -130,29 +130,36 @@ the mail server.
 
 ## Testing
 
-| Layer          | What                                                                                  | Where                       | Runs in CI                                       |
-| -------------- | ------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------ |
-| Unit           | Service logic with mocked dependencies (JUnit 5, Mockito, AssertJ)                    | `*/src/test`                | Per-service workflow, on changes to that service |
-| Integration    | Repositories and controllers against real databases (Testcontainers)                  | `*/src/test`                | Per-service workflow                             |
-| **End-to-end** | The whole system through the API Gateway, exactly like a client (Playwright + pytest) | [`e2e-tests/`](./e2e-tests) | `e2e-tests` workflow, on **every** pull request  |
+| Layer          | What                                                                                                                       | Where                       | Runs in CI                                       |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------ |
+| Unit           | Service logic with mocked dependencies (JUnit 5, Mockito, AssertJ)                                                         | `*/src/test`                | Per-service workflow, on changes to that service |
+| Integration    | Repositories and controllers against real databases (Testcontainers)                                                       | `*/src/test`                | Per-service workflow                             |
+| **End-to-end** | The whole system through the API Gateway, exactly like a client, plus browser tests of the demo page (Playwright + pytest) | [`e2e-tests/`](./e2e-tests) | `e2e-tests` workflow, on **every** pull request  |
 
 ### End-to-end suite
 
-32 tests that only talk to the gateway over HTTP - no knowledge of the Java
-code. Each run registers a fresh user and creates its own venues, courts and
-bookings, so tests never depend on existing data.
+40 tests: 32 API tests that only talk to the gateway over HTTP - no knowledge
+of the Java code - and 8 browser tests of the double-booking demo page. Each
+run registers a fresh user and creates its own venues, courts and bookings,
+so tests never depend on existing data.
 
-| Area            | Covered                                                                                                                                                                                                                      |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Smoke           | Gateway health; every service reachable through the gateway with a JWT                                                                                                                                                       |
-| Auth            | Login returns a JWT; wrong password 401; duplicate email 409; short password 400; missing / invalid / wrong-scheme tokens 401                                                                                                |
-| Venues & courts | Create, get, partial case-insensitive search, courts listed under a venue, unknown venue 404, non-owner delete 403 (venue untouched), missing name 400                                                                       |
-| Booking saga    | Booking starts `PENDING` with the correct price; payment `CONFIRMED`; booking becomes `CONFIRMED`; notification `SENT`; exactly one email for that booking in Mailpit; same slot twice 409; invalid duration / past date 400 |
-| Concurrency     | 2 and 10 simultaneous requests for the same slot - exactly one wins, one booking saved; overlapping slots with different start times - only one wins; non-overlapping slots - both succeed                                   |
+| Area            | Covered                                                                                                                                                                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Smoke           | Gateway health; every service reachable through the gateway with a JWT                                                                                                                                                             |
+| Auth            | Login returns a JWT; wrong password 401; duplicate email 409; short password 400; missing / invalid / wrong-scheme tokens 401                                                                                                      |
+| Venues & courts | Create, get, partial case-insensitive search, courts listed under a venue, unknown venue 404, non-owner delete 403 (venue untouched), missing name 400                                                                             |
+| Booking saga    | Booking starts `PENDING` with the correct price; payment `CONFIRMED`; booking becomes `CONFIRMED`; notification `SENT`; exactly one email for that booking in Mailpit; same slot twice 409; invalid duration / past date 400       |
+| Concurrency     | 2 and 10 simultaneous requests for the same slot - exactly one wins, one booking saved; overlapping slots with different start times - only one wins; non-overlapping slots - both succeed                                         |
+| Demo page (UI)  | Page loads with defaults; missing-token hint; single booking succeeds; "Fire Both" - exactly one panel wins, the other shows 409; invalid token shows 401; 409 / 500 / network errors (mocked with `page.route`) shown as failures |
+
+The UI tests use the Page Object Model (`RaceDemoPage`, `BookingPanel`), so
+tests read as steps, and mock error responses with `page.route` instead of
+breaking the backend.
 
 In CI the workflow builds and starts the full Docker Compose stack, waits
-until every service answers through the gateway, runs the suite (about
-3 minutes end to end, no secrets needed), and prints service logs on failure.
+until every service answers through the gateway, installs Chromium, runs the
+suite (no secrets needed), and on failure prints service logs and keeps
+screenshots and Playwright traces of failed UI tests.
 
 ### Bugs found by the e2e suite
 
@@ -165,6 +172,7 @@ the fix, then the same test passing.
 | Saga never completed           | Booking stayed `PENDING` forever, even after payment was `CONFIRMED`                    | Booking Service published `BookingCreated` but never consumed the payment result                                                                                          | Booking Service consumes `PaymentConfirmed` / `PaymentFailed` on its own queues, with idempotent `PENDING -> CONFIRMED / CANCELLED` transitions                             |
 | Overlapping double bookings    | 10:00-12:00 and 11:00-12:00 sent simultaneously were **both** accepted                  | The Redis lock key included the start time, so overlapping bookings took different locks and ran the overlap check in parallel                                            | Lock per court + date with a short retry; a guard test keeps non-overlapping bookings succeeding in parallel                                                                |
 | Failed emails silently lost    | Notifications missing under load; logs showed Mailtrap `550 Too many emails per second` | The log row was saved before sending, so RabbitMQ's redelivery hit the idempotency check and skipped the retry - the email was never sent, but recorded as if it had been | Send first, then record `SENT` / `FAILED`; only `SENT` is treated as a duplicate; retry with backoff. Mailpit made the default so tests don't depend on a third-party quota |
+| Demo page crashed on 401       | An invalid token showed _"Unexpected end of JSON input"_ instead of the 401             | The gateway rejects bad tokens with an empty body, but the page always called `response.json()`                                                                           | Read the body as text and parse it only if it's JSON; show a clear "token missing, invalid or expired" hint for 401                                                         |
 
 ## Known Simplifications
 
@@ -281,14 +289,14 @@ diagnosed from logs and code, and fixed with the failing test committed first.
 - [x] Notification Service - event consumer, email delivery with status and retry
 - [x] API Gateway - routing, JWT validation
 - [x] Docker Compose - full system orchestration
-- [x] End-to-end API test suite (Playwright + pytest) running in CI on every pull request
+- [x] End-to-end test suite (Playwright + pytest) running in CI on every pull request
 
 **Optional enhancements (not required for core completeness):**
 
 - [x] Observability stack (Prometheus, Grafana, Zipkin)
 - [x] Scaling demonstration (horizontal scaling + load test)
 - [x] Live double-booking prevention demo page
-- [ ] UI tests for the demo page (Playwright)
+- [x] UI tests for the demo page (Playwright)
 - [ ] Dead-letter queue for notification events that exhaust their retries
 - [ ] Recommendation Service (stretch goal)
 - [ ] Kubernetes deployment (stretch goal)
