@@ -26,13 +26,21 @@ jobs:
         working-directory: e2e-tests
         run: pip install -r requirements.txt
 
+      - name: Install Chromium for UI tests
+        working-directory: e2e-tests
+        run: python -m playwright install --with-deps chromium
+
       - name: Wait for all services
         working-directory: e2e-tests
         run: python wait_for_stack.py
 
       - name: Run e2e tests
         working-directory: e2e-tests
-        run: pytest -v --junitxml=test-results/junit.xml
+        run: >
+          pytest -v --junitxml=test-results/junit.xml
+          --screenshot only-on-failure
+          --tracing retain-on-failure
+          --output test-results/playwright
 
       - name: Show service logs (on failure)
         if: failure()
